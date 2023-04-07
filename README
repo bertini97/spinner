@@ -15,4 +15,5 @@ implemented, and the only interaction available is ferromagnetic.
 NOTE: Support for the Potts models and more interactions (long range,
 spin-glass, etc) is planned.
 
-Read the documentation for basic usage examples.
+Read the documentation at https://bertini97.gitlab.io/spinner/ for
+basic usage examples.
