@@ -51,7 +51,7 @@ spins_set_up (spin_t *spins, size_t size, size_t n_comps)
 }
 
 static void *
-nvector_priv_hcnf_alloc (size_t const side, size_t const n_dims,
+cnf_alloc (size_t const side, size_t const n_dims,
                          size_t const param)
 {
   nvector_priv_t *priv = spnr_malloc (sizeof (nvector_priv_t));
@@ -79,7 +79,7 @@ nvector_priv_hcnf_alloc (size_t const side, size_t const n_dims,
 }
 
 static void
-nvector_priv_hcnf_free (void *priv)
+cnf_free (void *priv)
 {
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
@@ -179,7 +179,7 @@ spin_print (spin_t * const u, size_t const n_comps)
 }
 
 static void
-nvector_priv_print_spins_2d (void *priv)
+print_spins_2d (void *priv)
 {
   size_t i, j, index;
   nvector_priv_t *priv_c = priv;
@@ -200,7 +200,7 @@ nvector_priv_print_spins_2d (void *priv)
 }
 
 static void
-nvector_priv_print_spins_3d (void *priv)
+print_spins_3d (void *priv)
 {
   size_t i, j, k, index;
   nvector_priv_t *priv_c = priv;
@@ -224,7 +224,7 @@ nvector_priv_print_spins_3d (void *priv)
 }
 
 static float
-nvector_priv_hcnf_calc_h (void *priv)
+cnf_calc_h (void *priv)
 {
   size_t i, j, index;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
@@ -256,7 +256,7 @@ nvector_priv_hcnf_calc_h (void *priv)
 }
 
 static float
-nvector_priv_calc_m (void *priv)
+calc_m (void *priv)
 {
   size_t i, j;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
@@ -294,7 +294,7 @@ h_delta_calc (size_t * const nbors_k, float * const coups_k,
 }
 
 static void
-nvector_priv_hcnf_mcstep_ssf_met (void *priv, float const beta)
+cnf_mcstep_metr (void *priv, float const beta)
 {
   size_t i, k, index;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
@@ -327,16 +327,23 @@ nvector_priv_hcnf_mcstep_ssf_met (void *priv, float const beta)
     }
 }
 
-static const spnr_latt_kind_t hcnf_kind =
+static void
+cnf_mcstep_wolff (void *priv, float beta)
 {
-  "icnf",
-  &nvector_priv_hcnf_alloc,
-  &nvector_priv_hcnf_free,
-  &nvector_priv_print_spins_2d,
-  &nvector_priv_print_spins_3d,
-  &nvector_priv_hcnf_calc_h,
-  &nvector_priv_calc_m,
-  &nvector_priv_hcnf_mcstep_ssf_met
+  /* TODO */
+}
+
+static const spnr_latt_kind_t cnf_kind =
+{
+  "ising cubic nn ferr",
+  &cnf_alloc,
+  &cnf_free,
+  &print_spins_2d,
+  &print_spins_3d,
+  &cnf_calc_h,
+  &calc_m,
+  &cnf_mcstep_metr,
+  NULL
 };
 
-const spnr_latt_kind_t *spnr_nvector_cubicnn_ferr = &hcnf_kind;
+const spnr_latt_kind_t *spnr_nvector_cubicnn_ferr = &cnf_kind;

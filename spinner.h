@@ -43,11 +43,13 @@
 #define SPNR_PI             3.1415926536
 #define SPNR_J              1
 #define SPNR_BUFFER_SIZE    100
-#define SPNR_SIDE_MAX       64
-#define SPNR_DIMS_MAX       5
-#define SPNR_COMPS_MAX      5
+#define SPNR_SIDE_MAX       512
+#define SPNR_DIMS_MAX       8
+#define SPNR_COMPS_MAX      8
 
 BEGIN_C_DECLS
+
+typedef void spnr_func_t (void *priv, float beta);
 
 /* Opaque structure representing a lattice kind, containing the functions
  * necessary to create it, simulate it with MCMC methods and
@@ -62,7 +64,8 @@ typedef struct
   void (*print_spins_3d) (void *priv);
   float (*calc_h) (void *priv);
   float (*calc_m) (void *priv);
-  void  (*mcstep_ssf_met) (void *priv, float beta);
+  void  (*mcstep_metr) (void *priv, float beta);
+  void  (*mcstep_wolff) (void *priv, float beta);
 } spnr_latt_kind_t;
 
 /* Structure representing a lattice containing a lattice type structure
@@ -74,6 +77,7 @@ typedef struct
   spnr_latt_kind_t const * kind;
   void * priv;
 } spnr_latt_t;
+
 
 /* Structure for a double vector of data, holding the energy and
  * magnetization for every time step
@@ -89,7 +93,11 @@ typedef struct
 /* Available lattice kinds */
 
 extern spnr_latt_kind_t const *spnr_ising_cubicnn_ferr;
-extern spnr_latt_kind_t const *spnr_heisen_cubicnn_ferr;
+extern spnr_latt_kind_t const *spnr_nvector_cubicnn_ferr;
+
+/* Available func methods */
+extern spnr_func_t *spnr_metr (spnr_latt_t * const l);
+extern spnr_func_t *spnr_wolff (spnr_latt_t * const l);
 
 /*lattice structure methods */
 
@@ -109,10 +117,9 @@ float
 spnr_latt_calc_m (spnr_latt_t const * const l);
 
 spnr_data_t *
-spnr_latt_run_ssf_met (spnr_latt_t * const l,
-                       size_t const n_steps,
-                       size_t const n_probes,
-                       float const beta);
+spnr_latt_run (spnr_func_t * (*getter) (spnr_latt_t *l),
+               spnr_latt_t * const l, size_t const n_steps,
+               size_t const n_probes, float const beta);
 
 /*data structure methods */
 

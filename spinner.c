@@ -70,11 +70,29 @@ spnr_latt_calc_m (spnr_latt_t const * const l)
   return h; 
 }
 
+spnr_func_t *
+spnr_metr (spnr_latt_t * const l)
+{
+  if (!l->kind->mcstep_metr)
+    spnr_err (SPNR_ERROR_FUNC_NULL,
+              "ERROR: func not found for this lattice kind");
+  return l->kind->mcstep_metr;
+}
+
+spnr_func_t *
+spnr_wolff (spnr_latt_t * const l)
+{
+  if (!l->kind->mcstep_wolff)
+    spnr_err (SPNR_ERROR_FUNC_NULL,
+              "ERROR: func not found for this lattice kind");
+  return l->kind->mcstep_wolff;
+}
+
+
 spnr_data_t *
-spnr_latt_run_ssf_met (spnr_latt_t * const l,
-                       size_t const n_steps,
-                       size_t const n_probes,
-                       float const temp)
+spnr_latt_run (spnr_func_t * (*getter) (spnr_latt_t *l),
+               spnr_latt_t * const l, size_t const n_steps,
+               size_t const n_probes, float const temp)
 {
   size_t i, j;
   size_t const n_steps_bef_probe = n_steps / n_probes;
@@ -83,7 +101,7 @@ spnr_latt_run_ssf_met (spnr_latt_t * const l,
   void * priv = l->priv;
   float (*calc_h) (void *priv) = l->kind->calc_h;
   float (*calc_m) (void *priv) = l->kind->calc_m;
-  void (*mcstep_ssf_met) (void *priv, float beta) = l->kind->mcstep_ssf_met;
+  void (*func) (void *priv, float beta) = getter(l);
   
   spnr_data_t * const data = spnr_data_alloc (n_probes + 1);
   
@@ -95,14 +113,13 @@ spnr_latt_run_ssf_met (spnr_latt_t * const l,
   for (i = 1; i <= n_probes; ++i)
     {
       for (j = 0; j < n_steps_bef_probe; ++j)
-          mcstep_ssf_met (priv, beta);
+          func (priv, beta);
       data->h[i] = calc_h (priv);
       data->m[i] = calc_m (priv);
     }
   
   return data;
 }
-
 
 spnr_data_t *
 spnr_data_alloc (size_t const size)

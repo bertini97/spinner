@@ -1,4 +1,4 @@
-/* ising.c
+/* error.c
  * 
  * Copyright (C) 2023 L. Bertini
  * 
