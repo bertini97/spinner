@@ -1,4 +1,3 @@
 lib_LTLIBRARIES = libspinner.la
 pkginclude_HEADERS = spinner.h
-noinst_HEADERS = utils_source.c
-libspinner_la_SOURCES = spinner.c utils.c ising.c nvector.c error.c malloc.c
+libspinner_la_SOURCES = lattice.c data.c params.c utils.c ising.c nvector.c error.c couplings.c

@@ -25,7 +25,7 @@ simulation using Monte Carlo Markov Chain (MCMC) methods.
    Support for the Potts models and more interactions (long range,
    spin-glass, etc) is planned.
 
-Introduction
+Lattice parameters and couplings
 ==========================================
 
 An `n`-vector model is a simple system of interacting n-vectors
@@ -38,9 +38,6 @@ form:
 
 The coupling constant :math:`J_{ij}` establishes which spins will
 interact.
-
-Non-zero elements of the coupling
-------------------------------------------
 
 Which elements of this matrix are nonzero define the extent of the
 interaction between the spins, the most common being the
@@ -55,9 +52,6 @@ nearest-neighbor (NN) interaction:
      - Nearest neighbor interaction
    * - :math:`=J/N\quad \forall i,j`
      - Long range interaction
-
-Magnitude of the couplings
-------------------------------------------
 
 Different values for the nonzero coupling elements result in different
 models:
@@ -74,74 +68,116 @@ models:
    * - Random
      - Spin-glass behavior
 
-Creating a lattice
+Creating lattice parameter data
 ==========================================
 
-In this section are covered the basics of making a lattice object.
+All the information about the structure of a particular lattice, and the
+type of interaction between the spins, is contained in the datatype
+:c:type:`spnr_params_t`.
 
-The lattice kind
-------------------------------------------
+.. c:type:: spnr_params_t
 
-All the information about the structure of a particular lattice, the
-kinds of spins that populate it and the interation they have with each
-other is contained in the datatype :c:type:`spnr_latt_kind_t`.
+   This datatype holds information about a lattice, and can be shared
+   between multiple instances of a lattice.
 
-.. c:type:: spnr_latt_kind_t
+It can be created and destroyed with
+
+.. c:function:: spnr_params_t *spnr_params_cubicnn_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param)
+   
+   :param getter: pointer to function that returns the desired interaction; available getters are:
+   
+      .. c:function:: float spnr_ferr ()
+      
+         ferromagnetic interaction, returns :code:`+SPNR_J`
+         
+      .. c:function:: float spnr_antiferr ()
+      
+         antiferromagnetic interaction, returns :code:`-SPNR_J`
+      
+      .. c:function:: float spnr_bim ()
+      
+         bimodal interaction, returns :code:`+SPNR_J` or :code:`-SPNR_J` with equal probability
+   
+   :param side: the side length in spins of the lattice structure
+   
+   :param n_dims: the number of dimensions of the lattice structure
+   
+   :param param: a generic parameter that lattice kinds interpret differently: in the n-vector model it represent n, the number of components of the vectors, while in the Potts model it's q, the number of colors
+      
+   :returns: a pointer to a newly allocated :c:type:`spnr_param_t` object with cubic structure and nearest neighbor interaction
+
+.. c:function:: spnr_params_t *spnr_params_longrange_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param)
+   
+   :returns: a pointer to a newly allocated :c:type:`spnr_param_t` object with long range interactions; only :code:`size = pow (side, n_dims)` is needed for the computations, and these parameters are otherwise ignored
+
+.. c:function:: void spnr_params_nn_free (spnr_params_t *p)
+
+   Frees the :c:type:`spnr_params_t` onject with nearest neighbor interaction
+
+.. c:function:: void spnr_params_lr_free (spnr_params_t *p)
+
+   Frees the :c:type:`spnr_params_t` onject with long range interaction
+
+Example:
+
+.. code-block:: c
+  
+   #include "spinner.h"
+   
+   int main ()
+   {
+     spnr_params_t *params = spnr_params_cubicnn_alloc (spnr_ferr, 16, 2, 0);
+     spnr_prams_nn_free (params);
+   }
+
+Creating lattices from the parameter type
+==========================================
+
+In this section are covered the basics of making lattice objects from
+a single shared set of parameters.
+
+All the information about the kinds of spins that populate the lattice
+and the functions needed to operate on them, are contained in the
+datatype :c:type:`spnr_latt_kind_t`.
+
+.. c:type:: spnr_kind_t
 
    Defines a static structure which holds functions that act on a
-   particular lattice. It does `not` hold any data.
+   particular kind of lattice. It does `not` hold any data, and it's
+   shared between lattices.
 
    The following lattice types are available.
 
-   .. c:var:: spnr_latt_kind_t *spnr_ising_cubicnn_ferr
+   .. c:var:: spnr_kind_t *spnr_ising_cubicnn
 
-      Ising model on a cubic lattice with nearest neighbor ferromagnetic
-      interaction.
+      Ising model on a cubic lattice with nearest neighbor interaction
+   
+   .. c:var:: spnr_kind_t *spnr_ising_longrange
 
-   .. c:var:: spnr_latt_kind_t *spnr_nvector_cubicnn_ferr
+      Ising model on a graph with long range interaction
+
+   .. c:var:: spnr_kind_t *spnr_nvector_cubicnn_ferr
 
       `n`-vector model on a cubic lattice with nearest neighbor
-      ferromagnetic interaction.
+      interaction
 
-The lattice object
-------------------------------------------
-
-A lattice is defined using the :c:type:`spnr_latt_t` datatype.
+A lattice is defined using the :c:type:`spnr_latt_t` datatype
 
 .. c:type:: spnr_latt_t
 
-   This data structure defines a lattice.
-
-   .. c:member:: spnr_latt_kind_t *kind
-
-      Member holding a reference to a datatype
-      :c:type:`spnr_latt_kind_t`, which holds all the necessary
-      information for that kind of lattice, including functions to
-      operate on it.
-
-   .. c:member:: void *priv
-
-      The actual data belonging to the lattice; for example, the array
-      of the spin values, among other convenience data. Each
-      :c:type:`spnr_latt_kind_t` defines it own internal structure, and
-      casts :code:`priv` accordingly.
-
-Creating and destroying a lattice
-------------------------------------------
+   This datatype represents a lattice object with a defined kind of
+   spins and it can share its :c:type:`spnr_param_t` structure with
+   other lattice instances
 
 These are the functions for creating and destroying a lattice.
 
 .. c:function:: spnr_latt_t *spnr_latt_alloc (spnr_latt_kind_t *kind, size_t side, size_t n_dims, size_t param)
 
-   :param kind: a pointer to the required lattice kind
+   :param kind: a pointer to the requested lattice kind
 
-   :param side: the size in spins of a side of the lattice
+   :param params: a pointer to the requested lattice params
 
-   :param n_dims: the number of dimensions of the lattice
-
-   :param param: an additional parameter which contains the number of vector components in the case of `n`-vector models, or the number of colors in the Potts model. It is ignored in Ising model.
-
-   :returns: a pointer to an allocated :c:type:`spnr_latt_t` variable. It uses the provided :c:type:`spnr_latt_kind_t` to properly allocate the private data.
+   :returns: a pointer to an allocated :c:type:`spnr_latt_t` variable
 
 .. c:function:: void spnr_latt_free (spnr_latt_t *l)
 
@@ -155,8 +191,10 @@ Example:
    
    int main ()
    {
-     spnr_latt_t *l = spnr_latt_alloc (spnr_ising_cubicnn_ferr, 3, 3, 0);
+     spnr_params_t *p = spnr_params_cubicnn_alloc (spnr_ferr, 8, 2, 0);
+     spnr_latt_t *l = spnr_latt_alloc (spnr_ising_cubicnn, p);
      spnr_latt_free (l);
+     spnr_params_free (p);
    }
 
 Simulating a lattice
@@ -165,10 +203,8 @@ Simulating a lattice
 In this section is covered the process of simulating a lattice with
 MCMC methods.
 
-Simulation data
-------------------------------------------
-
-This library provides the following datatype to store the simulation data.
+This library provides the following datatype to store the simulation
+data.
 
 .. c:type:: spnr_data_t
 
@@ -186,19 +222,27 @@ These functions can be used to create or destroy one.
    Writes the simulation data in a plain text :file:`.dat` file with
    the provided name.
 
-Running the simulation
-------------------------------------------
-
 Running the simulation requires calling the appropriate function.
 
-.. warning:: So far only the single spin flip Metropolis dynamic is
-   available. Single spin flip Heat-Bath and cluster flip Wolff are
-   being worked on and will be implemented soon
+.. c:type:: spnr_func_getter_t
 
-.. c:function:: spnr_data_t *spnr_latt_run_ssf_met (spnr_latt_t *l, size_t n_steps, size_t n_probes, float temp)
+   Datatype that holds a pointer to a function that grabs the required
+   algorithm from the 
+
+.. c:function:: spnr_data_t *spnr_latt_run (spnr_func_getter_t *getter, spnr_latt_t *l, size_t n_steps, size_t n_probes, float temp)
 
    Runs the simulation with a single spin flip metropolis algorhithm.
 
+   :param getter: a pointer to the requested algorithm getter, to be chosen from:
+   
+      .. c:var:: spnr_func_getter_t spnr_metr
+      
+         gets the single spin-flip Metropolis dynamics
+         
+      .. c:var:: spnr_func_getter_t spnr_wolff
+      
+         gets the clister-flip Wolff dynamics
+   
    :param l: the lattice to sample
    :param n_steps: the number of Monte Carlo steps to run (each MC step is equivalent to N single spin flip steps where N is the size of the lattice)
    :param n_probes: the number of times the lattice is probed for energy and magnetization
@@ -248,9 +292,10 @@ Example:
    {
      float h = 0, m = 0;
      spnr_data_t *run, *corr;
-     spnr_latt_t *l = spnr_latt_alloc (spnr_ising_cubicnn_ferr, 3, 3, 0);
+     spnr_params_t *p = spnr_params_cubicnn_alloc (spnr_ferr, 8, 2, 0);
+     spnr_latt_t *l = spnr_latt_alloc (spnr_ising_cubicnn, params);
      
-     run = spnr_latt_run_ssf_met (l, 1000, 100, 3.0);
+     run = spnr_latt_run (spnr_metr, l, 1000, 100, 3.0);
      corr = spnr_data_calc_corr (run);
      
      spnr_data_mean_calc (run, &h, &m);
@@ -262,4 +307,5 @@ Example:
      spnr_data_free (corr);
      spnr_data_free (run);
      spnr_latt_free (l);
+     spnr_params_nn_free (p);
    }

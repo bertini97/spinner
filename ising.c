@@ -18,112 +18,68 @@
  */
 
 #include "spinner.h"
-#include "common.h"
 #include "utils.h"
 
 typedef int_fast8_t spin_t;
 
 typedef struct
 {
-  size_t n_dims;
-  size_t side;
-  
-  size_t size;
   spin_t *spins;
-  
-  size_t n_inters;
-  size_t *nbors;
-  float *coups;
   
   size_t *buffer;
   int *in_cluster;
 } ising_priv_t;
 
 static void
-spins_set_up (spin_t *spins, size_t size)
+spins_set_up (spnr_params_t *params, void *priv)
 {
-  memset (spins, +1, size * sizeof (spin_t));
+  spin_t *spins = ((ising_priv_t *) priv)->spins;
+  memset (spins, +1, params->size * sizeof (spin_t));
+}
+
+static void
+spins_set_rand (spnr_params_t *params, void *priv)
+{
+  size_t i, size = params->size;
+  spin_t *spins = ((ising_priv_t *) priv)->spins;
+  
+  for (i = 0; i < size; ++i)
+      spins[i] = ((float) rand() / RAND_MAX < 0.5) ? +1 : -1;
 }
 
 static void *
-cnf_alloc (size_t const side, size_t const n_dims,
-           __attribute__((unused)) size_t const param)
+priv_alloc (spnr_params_t * const params)
 {
-  ising_priv_t *priv = spnr_malloc (sizeof (ising_priv_t));
+  ising_priv_t *priv = malloc_err (sizeof (ising_priv_t));
+  priv->spins = malloc_err (params->size * sizeof (spin_t));
+  spins_set_up (params, priv);
   
-  if (side <= 0 || side >= SPNR_SIDE_MAX
-      || n_dims <= 0 || n_dims >= SPNR_DIMS_MAX)
-    spnr_err (SPNR_ERROR_PARAM_OOB, "lattice parameters out of bounds");
-  
-  priv->n_dims = n_dims;
-  priv->side = side;
-  priv->size = pow (side, n_dims);
-  priv->n_inters = n_dims * 2;
-  
-  priv->spins = spnr_malloc (priv->size * sizeof (spin_t));
-  priv->nbors = spnr_malloc (priv->size * priv->n_inters * sizeof (size_t));
-  priv->coups = spnr_malloc (priv->size * priv->n_inters * sizeof (float));
-  
-  spins_set_up (priv->spins, priv->size);
-  nbors_cubicnn_set (priv->nbors, side, n_dims);
-  coups_cubicnn_set_ferr (priv->coups, priv->nbors, side, n_dims);
-  
-  priv->buffer = spnr_malloc (priv->size * sizeof (size_t));
-  priv->in_cluster = spnr_malloc (priv->size * sizeof (int));
+  priv->buffer = malloc_err (params->size * sizeof (size_t));
+  priv->in_cluster = malloc_err (params->size * sizeof (int));
   
   return priv;
 }
 
-
-/*static void *
-ising_priv_ilrf_alloc (size_t const side, size_t const n_dims,
-                       __attribute__((unused)) size_t const param)
-{
-  ising_priv_t *priv = spnr_malloc (sizeof (ising_priv_t));
-  
-  priv->size = pow (side, n_dims);
-  priv->spins = malloc (priv->size * sizeof (spin_t));
-  priv->coups = malloc (priv->size * priv->size * sizeof (float));
-  
-  spins_set_up (priv->spins, priv->size);
-  coups_longrange_set_ferr (priv->coups, priv->size);
-  
-  return priv;
-}*/
-
-
 static void
-cnf_free (void *priv)
+priv_free (void *priv)
 {
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
   free (priv_c->spins);
-  free (priv_c->nbors);
-  free (priv_c->coups);
+  
+  free (priv_c->buffer);
+  free (priv_c->in_cluster);
   
   free (priv_c);
 }
 
-
-/*static void
-lrf_free (void *priv)
-{
-  ising_priv_t *priv_c = (ising_priv_t *) priv;
-  
-  free (priv_c->spins);
-  free (priv_c->coups);
-  
-  free (priv_c);
-}*/
-
-
 static void
-print_spins_2d (void *priv)
+spins_print_2d (spnr_params_t *params, void *priv)
 {
   size_t i, j;
   ising_priv_t *priv_c = priv;
   spin_t *spins = priv_c->spins;
-  size_t const side = priv_c->side;
+  size_t const side = params->side;
   
   for (i = 0; i < side; i++)
     {
@@ -136,12 +92,12 @@ print_spins_2d (void *priv)
 
 
 static void
-print_spins_3d (void *priv)
+spins_print_3d (spnr_params_t *params, void *priv)
 {
   size_t i, j, k;
   ising_priv_t *priv_c = priv;
   spin_t *spins = priv_c->spins;
-  size_t const side = priv_c->side;
+  size_t const side = params->side;
   
   for (i = 0; i < side; i++)
     {
@@ -157,23 +113,27 @@ print_spins_3d (void *priv)
 
 
 static float
-cnf_calc_h (void *priv)
+cn_calc_h (spnr_params_t *params, void *priv)
 {
-  size_t i, j;
+  size_t i, j, i_inters;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = priv_c->size;
-  size_t const n_dims = priv_c->n_dims;
-  size_t const n_inters = priv_c->n_inters;
-  size_t * const nbors = priv_c->nbors;
+  size_t const size = params->size;
+  size_t const n_dims = params->n_dims;
+  size_t const n_inters = params->n_inters;
+  size_t * const nbors = params->nbors, *nbors_i;
+  float * const coups = params->coups, *coups_i;
   spin_t * const spins = priv_c->spins;
   
   float h = 0;
   
   for (i = 0; i < size; ++i)
     {
+      i_inters = i * n_inters;
+      nbors_i = nbors + i_inters;
+      coups_i = coups + i_inters;
       for (j = 0; j < n_dims; ++j)
-        h += spins[i] * spins[nbors[i * n_inters + j]];
+        h += coups_i[j] * spins[i] * spins[nbors_i[j]];
     }
   h *= - 2.0 / size;
   
@@ -181,39 +141,41 @@ cnf_calc_h (void *priv)
 }
 
 
-/*static float
-ising_priv_ilrf_calc_h (void *priv)
+static float
+lr_calc_h (spnr_params_t *params, void *priv)
 {
   size_t i, j;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = priv_c->size;
+  size_t const size = params->size;
+  float * const coups = params->coups, *coups_i;
   spin_t * const spins = priv_c->spins;
   
   float h = 0;
   
   for (i = 0; i < size; ++i)
     {
+      coups_i = coups + i * size;
       for (j = 0; j < size; ++j)
         {
           if (j == i)
             continue;
-          h += spins[i] * spins[j];
+          h += coups_i [j] * spins[i] * spins[j];
         }
     }
-  h *= - 2.0 / size;
+  h *= - 2.0 / (size * sqrt(size));
   
   return h;
-}*/
+}
 
 
 static float
-calc_m (void *priv)
+calc_m (spnr_params_t *params, void *priv)
 {
   size_t i;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = priv_c->size;
+  size_t const size = params->size;
   spin_t * const spins = priv_c->spins;
   
   float m = 0;
@@ -225,34 +187,47 @@ calc_m (void *priv)
   return m;
 }
 
-
-static float
-h_delta_calc (size_t * const nbors_k, float * const coups_k,
-              spin_t * const spins, spin_t * const spins_k,
-              size_t const n_inters)
-{
-  size_t i;
-  float h = 0;
-  
-  h = 0;
-  for (i = 0; i < n_inters; ++i)
-    h += coups_k[i] * spins[nbors_k[i]];
-  h *= 2 * *spins_k;
-  
-  return h;
-}
-
-
 static void
-cnf_mcstep_metr (void *priv, float const beta)
+cn_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
 {
-  size_t i, k, index;
+  size_t i, j, k, k_inters;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = priv_c->size;
-  size_t const n_inters = priv_c->n_inters;
-  size_t * const nbors = priv_c->nbors;
-  float * const coups = priv_c->coups;
+  size_t const size = params->size;
+  size_t const n_inters = params->n_inters;
+  size_t * const nbors = params->nbors, *nbors_k;
+  float * const coups = params->coups, *coups_k;
+  spin_t * const spins = priv_c->spins, *spins_k;
+  
+  float h_delta;
+  
+  for (i = 0; i < size; ++i)
+    {
+      k = rand() % size;
+      k_inters = k * n_inters;
+      spins_k = spins + k;
+      nbors_k = nbors + k_inters;
+      coups_k = coups + k_inters;
+      
+      h_delta = 0;
+      for (j = 0; j < n_inters; ++j)
+        h_delta += coups_k[j] * spins[nbors_k[j]];
+      h_delta *= 2 * *spins_k;
+      
+      if (metr_prop_accept (h_delta, beta))
+        *spins_k *= -1;
+    }
+}
+
+static void
+lr_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
+{
+  size_t i, j, k;
+  ising_priv_t *priv_c = (ising_priv_t *) priv;
+  
+  size_t const size = params->size;
+  float const one_over_sqsize = 1.0 / sqrt(size);
+  float * const coups = params->coups, *coups_k;
   spin_t * const spins = priv_c->spins, *spins_k;
   
   float h_delta;
@@ -261,10 +236,14 @@ cnf_mcstep_metr (void *priv, float const beta)
     {
       k = rand() % size;
       spins_k = spins + k;
+      coups_k = coups + k * size;
       
-      index = k * n_inters;
-      h_delta = h_delta_calc (nbors + index, coups + index,
-                  spins, spins_k, n_inters);
+      h_delta = 0;
+      for (j = 0; j < k; ++j)
+        h_delta += coups_k[j] * spins[j];
+      for (j = k + 1; j < size; ++j)
+        h_delta += coups_k[j] * spins[j];
+      h_delta *= 2 * *spins_k * one_over_sqsize;
       
       if (metr_prop_accept (h_delta, beta))
         *spins_k *= -1;
@@ -272,16 +251,17 @@ cnf_mcstep_metr (void *priv, float const beta)
 }
 
 void
-cnf_mcstep_wolff (void *priv, float const beta)
+cn_mcstep_wolff (spnr_params_t *params, void *priv, float const beta)
 {
   size_t i, k, head, index_cur, index_nbor;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = priv_c->size;
-  size_t const n_inters = priv_c->n_inters;
+  size_t const size = params->size;
+  size_t const n_inters = params->n_inters;
+  size_t * const nbors = params->nbors, *nbors_cur;
+  float * const coups = params->coups, *coups_cur;
+  
   spin_t * const spins = priv_c->spins, spin_cur;
-  size_t * const nbors = priv_c->nbors, *nbors_cur;
-  float * const coups = priv_c->coups, *coups_cur;
   size_t * const buffer = priv_c->buffer;
   int * const in_cluster = priv_c->in_cluster;
   
@@ -297,28 +277,21 @@ cnf_mcstep_wolff (void *priv, float const beta)
   buffer[head++] = k;
   in_cluster[k] = SPNR_TRUE;
   
-  /*printf ("p_add=%f\n", p_add);
-  printf ("k=%ld\n", k);*/
-  
   while (head)
     {
       index_cur = buffer[--head];
       spin_cur = spins[index_cur];
       nbors_cur = nbors + index_cur * n_inters;
       coups_cur = coups + index_cur * n_inters;
-      /*spins[index_cur] *= -1;*/
-      
-      /*printf ("index_cur=%ld spin_cur=%d\n", index_cur, spin_cur);*/
       
       for (i = 0; i < n_inters; ++i)
         {
           index_nbor = nbors_cur[i];
-          /*printf ("index_nbor=%ld spin_nbor=%d\n", index_nbor, spins[index_nbor]);*/
           if (!in_cluster[index_nbor] && spin_cur == spins[index_nbor])
             {
-              p_add = 1.0 - exp (-2.0 * beta * coups_cur[i] * spins[nbors_cur[i]] * spin_cur);
+              p_add = 1.0 - exp (-2.0 * beta * coups_cur[i]
+                                 * spins[nbors_cur[i]] * spin_cur);
               rand_num = (double) rand () / RAND_MAX;
-              /*printf ("rand_num=%f\n", rand_num);*/
               if (rand_num < p_add)
                 {
                   buffer[head++] = index_nbor;
@@ -330,31 +303,36 @@ cnf_mcstep_wolff (void *priv, float const beta)
     }
 }
 
-static const spnr_latt_kind_t cnf_kind =
+static const spnr_kind_t cn_kind =
 {
-  "icnf",
-  &cnf_alloc,
-  &cnf_free,
-  &print_spins_2d,
-  &print_spins_3d,
-  &cnf_calc_h,
+  "icn",
+  &priv_alloc,
+  &priv_free,
+  &spins_set_up,
+  &spins_set_rand,
+  &spins_print_2d,
+  &spins_print_3d,
+  &cn_calc_h,
   &calc_m,
-  &cnf_mcstep_metr,
-  &cnf_mcstep_wolff,
+  &cn_mcstep_metr,
+  &cn_mcstep_wolff,
 };
 
-const spnr_latt_kind_t *spnr_ising_cubicnn_ferr = &cnf_kind;
+const spnr_kind_t *spnr_ising_cubicnn = &cn_kind;
 
-/*static const spnr_latt_kind_t ilrf_kind =
+static const spnr_kind_t lr_kind =
 {
-	"icnf",
-	&ising_priv_ilrf_alloc,
-	&ising_priv_ilrf_free,
-	&ising_priv_print_spins_2d,
-	&ising_priv_print_spins_3d,
-	&ising_priv_ilrf_calc_h,
-	&ising_priv_calc_m,
-	NULL
+  "ilr",
+  &priv_alloc,
+  &priv_free,
+  &spins_set_up,
+  &spins_set_rand,
+  &spins_print_2d,
+  &spins_print_3d,
+  &lr_calc_h,
+  &calc_m,
+  &lr_mcstep_metr,
+  NULL
 };
 
-const spnr_latt_kind_t *spnr_ising_longrange_ferr = &ilrf_kind;*/
+const spnr_kind_t *spnr_ising_longrange = &lr_kind;

@@ -30,7 +30,8 @@ enum
   SPNR_FAILURE          = 1, /* generic failure */
   SPNR_ERROR_PARAM_OOB  = 2, /* given parameters out of bounds */
   SPNR_ERROR_ALLOC      = 3, /* memory allocation failure */
-  SPNR_ERROR_FUNC_NULL  = 4  /* func is null for that lattice kind*/
+  SPNR_ERROR_FUNC_NULL  = 4, /* func is NULL for that lattice kind*/
+  SPNR_ERROR_ARG_NULL   = 5  /* function argument is NULL */
 };
 
 extern void spnr_warn (int warn, char const *mess);

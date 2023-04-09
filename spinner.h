@@ -49,7 +49,18 @@
 
 BEGIN_C_DECLS
 
-typedef void spnr_func_t (void *priv, float beta);
+/* structure holding a coupling matrix */
+typedef struct
+{
+  size_t side;
+  size_t n_dims;
+  size_t param;
+  size_t size;
+  size_t n_inters;
+  
+  float * coups;
+  size_t * nbors;
+} spnr_params_t;
 
 /* Opaque structure representing a lattice kind, containing the functions
  * necessary to create it, simulate it with MCMC methods and
@@ -58,15 +69,17 @@ typedef void spnr_func_t (void *priv, float beta);
 typedef struct
 {
   char const * name;
-  void *(*alloc) (size_t const side, size_t n_dims, size_t const param);
-  void (*free) (void *priv);
-  void (*print_spins_2d) (void *priv);
-  void (*print_spins_3d) (void *priv);
-  float (*calc_h) (void *priv);
-  float (*calc_m) (void *priv);
-  void  (*mcstep_metr) (void *priv, float beta);
-  void  (*mcstep_wolff) (void *priv, float beta);
-} spnr_latt_kind_t;
+  void * (*priv_alloc) (spnr_params_t * params);
+  void (*priv_free) (void *priv);
+  void (*spins_set_up) (spnr_params_t *params, void *priv);
+  void (*spins_set_rand) (spnr_params_t *params, void *priv);
+  void (*spins_print_2d) (spnr_params_t *params, void *priv);
+  void (*spins_print_3d) (spnr_params_t *params, void *priv);
+  float (*calc_h) (spnr_params_t *params, void *priv);
+  float (*calc_m) (spnr_params_t *params, void *priv);
+  void  (*mcstep_metr) (spnr_params_t *params, void *priv, float beta);
+  void  (*mcstep_wolff) (spnr_params_t *params, void *priv, float beta);
+} spnr_kind_t;
 
 /* Structure representing a lattice containing a lattice type structure
  * and a pointer to the private data, that has a different structure
@@ -74,7 +87,8 @@ typedef struct
  */
 typedef struct
 {
-  spnr_latt_kind_t const * kind;
+  spnr_kind_t const * kind;
+  spnr_params_t * params;
   void * priv;
 } spnr_latt_t;
 
@@ -89,23 +103,47 @@ typedef struct
   float *m;
 } spnr_data_t;
 
+/* lord forgive me */
 
-/* Available lattice kinds */
+typedef void spnr_func_t (spnr_params_t *params, void *priv, float beta);
+typedef spnr_func_t * spnr_func_getter_t (spnr_kind_t const *kind);
 
-extern spnr_latt_kind_t const *spnr_ising_cubicnn_ferr;
-extern spnr_latt_kind_t const *spnr_nvector_cubicnn_ferr;
+/* available lattice kinds */
 
-/* Available func methods */
-extern spnr_func_t *spnr_metr (spnr_latt_t * const l);
-extern spnr_func_t *spnr_wolff (spnr_latt_t * const l);
+extern spnr_kind_t const *spnr_ising_cubicnn;
+extern spnr_kind_t const *spnr_ising_longrange;
 
-/*lattice structure methods */
+extern spnr_kind_t const *spnr_nvector_cubicnn;
+
+/* available interactions */
+
+extern float spnr_ferr ();
+extern float spnr_antiferr ();
+extern float spnr_bim ();
+
+/* available func methods */
+
+extern spnr_func_t *spnr_metr (spnr_kind_t const * kind);
+extern spnr_func_t *spnr_wolff (spnr_kind_t const * kind);
+
+/* coupling matrix methods */
+
+spnr_params_t *
+spnr_params_cubicnn_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
+
+spnr_params_t *
+spnr_params_longrange_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
+
+void
+spnr_params_nn_free (spnr_params_t *params);
+
+void
+spnr_params_lr_free (spnr_params_t *params);
+
+/* lattice structure methods */
 
 spnr_latt_t *
-spnr_latt_alloc (spnr_latt_kind_t const * const kind,
-                 size_t const side,
-                 size_t const n_dims,
-                 size_t const param);
+spnr_latt_alloc (spnr_kind_t const * kind, spnr_params_t *param);
 
 void
 spnr_latt_free (spnr_latt_t * const l);
@@ -117,9 +155,13 @@ float
 spnr_latt_calc_m (spnr_latt_t const * const l);
 
 spnr_data_t *
-spnr_latt_run (spnr_func_t * (*getter) (spnr_latt_t *l),
-               spnr_latt_t * const l, size_t const n_steps,
-               size_t const n_probes, float const beta);
+spnr_latt_run (spnr_func_getter_t *getter, spnr_latt_t * l,
+               size_t n_steps, size_t n_probes, float temp);
+
+void spnr_latt_spins_set_up (spnr_latt_t * const l);
+void spnr_latt_spins_set_rand (spnr_latt_t * const l);
+void spnr_latt_spins_print_2d (spnr_latt_t const * const l);
+void spnr_latt_spins_print_3d (spnr_latt_t const * const l);
 
 /*data structure methods */
 

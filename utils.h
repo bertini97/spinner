@@ -21,30 +21,12 @@
 #define UTILS_H
 
 #include <stdlib.h>
-#include "macros.h"
 #include "spinner.h"
-#include "error.h"
 
-void *
-spnr_malloc (size_t const size);
+BEGIN_C_DECLS
 
-void
-nbors_cubicnn_set (size_t * const nbors,
-                   size_t const side,
-                   size_t const n_dims);
+void * malloc_err (size_t const size);
+int metr_prop_accept (float const h_delta, float const beta);
 
-void
-coups_cubicnn_set_ferr (float * const coups,
-                        size_t * const nbors,
-                        size_t const side,
-                        size_t const n_dims);
-
-void
-coups_longrange_set_ferr (float * const coups,
-                          size_t const size);
-
-int
-metr_prop_accept (float const h_delta,
-                  float const beta);
-
+END_C_DECLS
 #endif

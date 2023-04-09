@@ -1,4 +1,4 @@
-/* ising.c
+/* nvector.c
  * 
  * Copyright (C) 2023 L. Bertini
  * 
@@ -18,77 +18,16 @@
  */
 
 #include "spinner.h"
-#include "common.h"
 #include "utils.h"
+#include "error.h"
 
 typedef float spin_t;
 
 typedef struct
 {
-  size_t n_dims;
-  size_t side;
-  
-  size_t size;
   size_t n_comps;
   spin_t *spins;
-  
-  size_t n_inters;
-  size_t *nbors;
-  float *coups;
 } nvector_priv_t;
-
-static void
-spins_set_up (spin_t *spins, size_t size, size_t n_comps)
-{
-  size_t i, j;
-  
-  for (i = 0; i < size; ++i)
-    {
-      spins[i * n_comps + 0] = 1.0;
-      for (j = 1; j < n_comps; ++j)
-        spins[i * n_comps + j] = 0.0;
-    }
-}
-
-static void *
-cnf_alloc (size_t const side, size_t const n_dims,
-                         size_t const param)
-{
-  nvector_priv_t *priv = spnr_malloc (sizeof (nvector_priv_t));
-  
-  if (side <= 0 || side >= SPNR_SIDE_MAX
-      || n_dims <= 0 || n_dims >= SPNR_DIMS_MAX
-      || param <= 0 || param >= SPNR_COMPS_MAX)
-    spnr_err (SPNR_ERROR_PARAM_OOB, "lattice parameters out of bounds");
-  
-  priv->n_dims = n_dims;
-  priv->side = side;
-  priv->n_comps = param;
-  priv->size = pow (side, n_dims);
-  priv->n_inters = n_dims * 2;
-  
-  priv->spins = spnr_malloc (priv->size * priv->n_comps * sizeof (spin_t));
-  priv->nbors = spnr_malloc (priv->size * priv->n_inters * sizeof (size_t));
-  priv->coups = spnr_malloc (priv->size * priv->n_inters * sizeof (float));
-  
-  spins_set_up (priv->spins, priv->size, priv->n_comps);
-  nbors_cubicnn_set (priv->nbors, side, n_dims);
-  coups_cubicnn_set_ferr (priv->coups, priv->nbors, side, n_dims);
-  
-  return priv;
-}
-
-static void
-cnf_free (void *priv)
-{
-  nvector_priv_t *priv_c = (nvector_priv_t *) priv;
-  
-  free (priv_c->spins);
-  free (priv_c->nbors);
-  free (priv_c->coups);
-  
-  free (priv_c);
-}
 
 static float
 rand_gauss ()
@@ -179,12 +118,61 @@ spin_print (spin_t * const u, size_t const n_comps)
 }
 
 static void
-print_spins_2d (void *priv)
+spins_set_up (spnr_params_t *params, void *priv)
+{
+  size_t i, j, size = params->size, n_comps = params->param;
+  spin_t *spins = ((nvector_priv_t *) priv)->spins;
+  
+  for (i = 0; i < size; ++i)
+    {
+      spins[i * n_comps + 0] = 1.0;
+      for (j = 1; j < n_comps; ++j)
+        spins[i * n_comps + j] = 0.0;
+    }
+}
+
+static void
+spins_set_rand (spnr_params_t *params, void *priv)
+{
+  size_t i, j, size = params->size, n_comps = params->param;
+  spin_t *spins = ((nvector_priv_t *) priv)->spins;
+  
+  for (i = 0; i < size; ++i)
+      spin_rand (spins + i * n_comps, n_comps);
+}
+
+static void *
+priv_alloc (spnr_params_t *params)
+{
+  nvector_priv_t *priv = malloc_err (sizeof (nvector_priv_t));
+  
+  if (!params->param)
+    spnr_err (SPNR_ERROR_PARAM_OOB, "param cannot be zero for nvector");
+  priv->n_comps = params->param;
+  priv->spins = malloc_err (params->size * priv->n_comps * sizeof (spin_t));
+  
+  spins_set_up (params, priv);
+  
+  return priv;
+}
+
+static void
+priv_free (void *priv)
+{
+  nvector_priv_t *priv_c = (nvector_priv_t *) priv;
+  
+  free (priv_c->spins);
+  free (priv_c);
+}
+
+static void
+spins_print_2d (spnr_params_t *params, void *priv)
 {
   size_t i, j, index;
   nvector_priv_t *priv_c = priv;
+  
+  size_t const side = params->side;
   spin_t *spins = priv_c->spins;
-  size_t const side = priv_c->side;
   size_t const n_comps = priv_c->n_comps;
   
   for (i = 0; i < side; i++)
@@ -200,13 +188,13 @@ print_spins_2d (void *priv)
 }
 
 static void
-print_spins_3d (void *priv)
+spins_print_3d (spnr_params_t *params, void *priv)
 {
   size_t i, j, k, index;
   nvector_priv_t *priv_c = priv;
-  spin_t *spins = priv_c->spins;
-  size_t const side = priv_c->side;
+  size_t const side = params->side;
   size_t const n_comps = priv_c->n_comps;
+  spin_t *spins = priv_c->spins;
   
   for (i = 0; i < side; i++)
     {
@@ -224,17 +212,18 @@ print_spins_3d (void *priv)
 }
 
 static float
-cnf_calc_h (void *priv)
+cn_calc_h (spnr_params_t *params, void *priv)
 {
   size_t i, j, index;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
-  size_t const size = priv_c->size;
-  size_t const n_dims = priv_c->n_dims;
+  size_t const size = params->size;
+  size_t const n_dims = params->n_dims;
+  size_t const n_inters = params->n_inters;
+  size_t * const nbors = params->nbors, *nbors_i;
+  float * const coups = params->coups, *coups_i;
+  
   size_t const n_comps = priv_c->n_comps;
-  size_t const n_inters = priv_c->n_inters;
-  size_t * const nbors = priv_c->nbors, *nbors_i;
-  float * const coups = priv_c->coups, *coups_i;
   spin_t * const spins = priv_c->spins, *spins_i;
   
   float h = 0;
@@ -256,12 +245,12 @@ cnf_calc_h (void *priv)
 }
 
 static float
-calc_m (void *priv)
+calc_m (spnr_params_t *params, void *priv)
 {
   size_t i, j;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
-  size_t const size = priv_c->size;
+  size_t const size = params->size;
   size_t const n_comps = priv_c->n_comps;
   spin_t * const spins = priv_c->spins, *spins_i;
   
@@ -294,16 +283,17 @@ h_delta_calc (size_t * const nbors_k, float * const coups_k,
 }
 
 static void
-cnf_mcstep_metr (void *priv, float const beta)
+cn_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
 {
   size_t i, k, index;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
-  size_t const size = priv_c->size;
+  size_t const size = params->size;
+  size_t const n_inters = params->n_inters;
+  size_t * const nbors = params->nbors;
+  float * const coups = params->coups;
+  
   size_t const n_comps = priv_c->n_comps;
-  size_t const n_inters = priv_c->n_inters;
-  size_t * const nbors = priv_c->nbors;
-  float * const coups = priv_c->coups;
   spin_t * const spins = priv_c->spins, *spins_k;
   
   spin_t spin_prop[SPNR_COMPS_MAX], spin_delta[SPNR_COMPS_MAX];
@@ -333,17 +323,19 @@ cnf_mcstep_wolff (void *priv, float beta)
   /* TODO */
 }
 
-static const spnr_latt_kind_t cnf_kind =
+static const spnr_kind_t cn_kind =
 {
   "ising cubic nn ferr",
-  &cnf_alloc,
-  &cnf_free,
-  &print_spins_2d,
-  &print_spins_3d,
-  &cnf_calc_h,
+  &priv_alloc,
+  &priv_free,
+  &spins_set_up,
+  &spins_set_rand,
+  &spins_print_2d,
+  &spins_print_3d,
+  &cn_calc_h,
   &calc_m,
-  &cnf_mcstep_metr,
+  &cn_mcstep_metr,
   NULL
 };
 
-const spnr_latt_kind_t *spnr_nvector_cubicnn_ferr = &cnf_kind;
+const spnr_kind_t *spnr_nvector_cubicnn = &cn_kind;

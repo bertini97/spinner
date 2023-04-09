@@ -18,45 +18,16 @@
  */
 
 #include "utils.h"
+#include "error.h"
 
-#define NAME  ferr
-#include "utils_source.c"
-#undef  NAME
-
-/*#define	NAME	bim
-#include "utils_source.c"
-#undef	NAME*/
-
-void
-nbors_cubicnn_set (size_t * const nbors,
-                   size_t const side,
-                   size_t const n_dims)
+void *
+malloc_err (size_t const size)
 {
-  size_t i, j;
-  size_t slices[SPNR_DIMS_MAX], size;
-  size_t unit, row, last_row, left;
-  
-  size_t const n_inters = n_dims * 2;
-
-  for (i = 0; i <= n_dims; ++i)
-    slices[i] = pow (side, i);
-  size = slices[n_dims];
-  
-  for (i = 0; i < size; ++i)
-    {
-      for (j = 0; j < n_dims; ++j)
-        {
-          unit = slices[j];
-          row  = slices[j+1];
-          last_row = row - unit;
-          left = ((i % row) < unit) ? (i + last_row) : (i - unit);
-      
-          nbors[i * n_inters + j] = left;
-          nbors[left * n_inters + j + n_dims] = i;
-        }
-    }
+  void * p = malloc (size);
+  if (!p)
+    spnr_err (SPNR_ERROR_ALLOC, "malloc returned NULL");
+  return p;
 }
-
 
 int
 metr_prop_accept (float const h_delta,
