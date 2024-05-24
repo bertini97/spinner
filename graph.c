@@ -1,4 +1,4 @@
-/* params.c
+/* graph.c
  * 
  * Copyright (C) 2023 L. Bertini
  * 
@@ -21,26 +21,26 @@
 #include "error.h"
 #include "utils.h"
 
-spnr_params_t *
-spnr_params_cubicnn_alloc (float (*getter)(),
+spnr_graph_t *
+spnr_graph_cubicnn_alloc (float (*getter)(),
                            size_t side, size_t n_dims, size_t param)
 {
   size_t i, j, unit, row, last_row, left, slices[SPNR_DIMS_MAX];
   size_t size = pow (side, n_dims), n_inters = 2 * n_dims;
-  spnr_params_t *p = malloc (sizeof (spnr_params_t));
+  spnr_graph_t *g = malloc (sizeof (spnr_graph_t));
   
   if (side <= 0 || side >= SPNR_SIDE_MAX
       || n_dims <= 0 || n_dims >= SPNR_DIMS_MAX)
     spnr_err (SPNR_ERROR_PARAM_OOB, "lattice parameters out of bounds");
   
-  p->side = side;
-  p->n_dims = n_dims;
-  p->param = param;
-  p->size = size;
-  p->n_inters = n_inters;
+  g->side = side;
+  g->n_dims = n_dims;
+  g->param = param;
+  g->size = size;
+  g->n_inters = n_inters;
   
-  p->coups = malloc_err (p->size * p->n_inters * sizeof (float));
-  p->nbors = malloc_err (p->size * p->n_inters * sizeof (size_t));
+  g->coups = malloc_err (g->size * g->n_inters * sizeof (float));
+  g->nbors = malloc_err (g->size * g->n_inters * sizeof (size_t));
 
   for (i = 0; i <= n_dims; ++i)
     slices[i] = pow (side, i);
@@ -54,60 +54,60 @@ spnr_params_cubicnn_alloc (float (*getter)(),
           last_row = row - unit;
           left = ((i % row) < unit) ? (i + last_row) : (i - unit);
       
-          p->coups[i * n_inters + j] = getter ();
-          p->coups[left * n_inters + j + n_dims] = p->coups[i * n_inters + j];
+          g->coups[i * n_inters + j] = getter ();
+          g->coups[left * n_inters + j + n_dims] = g->coups[i * n_inters + j];
           
-          p->nbors[i * n_inters + j] = left;
-          p->nbors[left * n_inters + j + n_dims] = i;
+          g->nbors[i * n_inters + j] = left;
+          g->nbors[left * n_inters + j + n_dims] = i;
         }
     }
   
-  return p;
+  return g;
 }
 
-spnr_params_t *
-spnr_params_longrange_alloc (float (*getter)(),
+spnr_graph_t *
+spnr_graph_longrange_alloc (float (*getter)(),
                              size_t side, size_t n_dims, size_t param)
 {
   size_t i, j, size = pow (side, n_dims);
-  spnr_params_t *p = malloc_err (sizeof (spnr_params_t));
+  spnr_graph_t *g = malloc_err (sizeof (spnr_graph_t));
   
   if (side <= 0 || side >= SPNR_SIDE_MAX
       || n_dims <= 0 || n_dims >= SPNR_DIMS_MAX)
     spnr_err (SPNR_ERROR_PARAM_OOB, "lattice parameters out of bounds");
   
-  p->side = side;
-  p->n_dims = n_dims;
-  p->param = param;
+  g->side = side;
+  g->n_dims = n_dims;
+  g->param = param;
   
-  p->size = size;
-  p->n_inters = size;
+  g->size = size;
+  g->n_inters = size;
   
-  p->coups = malloc_err (p->size * p->n_inters * sizeof (float));
+  g->coups = malloc_err (g->size * g->n_inters * sizeof (float));
   
   for (i = 0; i < size; ++i)
     {
       for (j = i; j < size; ++j)
         {
-          p->coups[i * size + j] = getter ();
-          p->coups[j * size + i] = p->coups[i * size + j];
+          g->coups[i * size + j] = getter ();
+          g->coups[j * size + i] = g->coups[i * size + j];
         }
     }
   
-  return p;
+  return g;
 }
 
 void
-spnr_params_nn_free (spnr_params_t *p)
+spnr_graph_nn_free (spnr_graph_t *g)
 {
-  free (p->coups);
-  free (p->nbors);
-  free (p);
+  free (g->coups);
+  free (g->nbors);
+  free (g);
 }
 
 void
-spnr_params_lr_free (spnr_params_t *p)
+spnr_graph_lr_free (spnr_graph_t *g)
 {
-  free (p->coups);
-  free (p);
+  free (g->coups);
+  free (g);
 }

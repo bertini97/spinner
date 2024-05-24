@@ -60,7 +60,7 @@ typedef struct
   
   float * coups;
   size_t * nbors;
-} spnr_params_t;
+} spnr_graph_t;
 
 /* Opaque structure representing a lattice kind, containing the functions
  * necessary to create it, simulate it with MCMC methods and
@@ -69,16 +69,16 @@ typedef struct
 typedef struct
 {
   char const * name;
-  void * (*priv_alloc) (spnr_params_t * params);
+  void * (*priv_alloc) (spnr_graph_t * graph);
   void (*priv_free) (void *priv);
-  void (*spins_set_up) (spnr_params_t *params, void *priv);
-  void (*spins_set_rand) (spnr_params_t *params, void *priv);
-  void (*spins_print_2d) (spnr_params_t *params, void *priv);
-  void (*spins_print_3d) (spnr_params_t *params, void *priv);
-  float (*calc_h) (spnr_params_t *params, void *priv);
-  float (*calc_m) (spnr_params_t *params, void *priv);
-  void  (*mcstep_metr) (spnr_params_t *params, void *priv, float beta);
-  void  (*mcstep_wolff) (spnr_params_t *params, void *priv, float beta);
+  void (*spins_set_up) (spnr_graph_t *graph, void *priv);
+  void (*spins_set_rand) (spnr_graph_t *graph, void *priv);
+  void (*spins_print_2d) (spnr_graph_t *graph, void *priv);
+  void (*spins_print_3d) (spnr_graph_t *graph, void *priv);
+  float (*calc_h) (spnr_graph_t *graph, void *priv);
+  float (*calc_m) (spnr_graph_t *graph, void *priv);
+  void  (*mcstep_metr) (spnr_graph_t *graph, void *priv, float beta);
+  void  (*mcstep_wolff) (spnr_graph_t *graph, void *priv, float beta);
 } spnr_kind_t;
 
 /* Structure representing a lattice containing a lattice type structure
@@ -88,9 +88,9 @@ typedef struct
 typedef struct
 {
   spnr_kind_t const * kind;
-  spnr_params_t * params;
+  spnr_graph_t * graph;
   void * priv;
-} spnr_latt_t;
+} spnr_system_t;
 
 
 /* Structure for a double vector of data, holding the energy and
@@ -105,7 +105,7 @@ typedef struct
 
 /* lord forgive me */
 
-typedef void spnr_func_t (spnr_params_t *params, void *priv, float beta);
+typedef void spnr_func_t (spnr_graph_t *graph, void *priv, float beta);
 typedef spnr_func_t * spnr_func_getter_t (spnr_kind_t const *kind);
 
 /* available lattice kinds */
@@ -128,40 +128,40 @@ extern spnr_func_t *spnr_wolff (spnr_kind_t const * kind);
 
 /* coupling matrix methods */
 
-spnr_params_t *
-spnr_params_cubicnn_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
+spnr_graph_t *
+spnr_graph_cubicnn_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
 
-spnr_params_t *
-spnr_params_longrange_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
-
-void
-spnr_params_nn_free (spnr_params_t *params);
+spnr_graph_t *
+spnr_graph_longrange_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
 
 void
-spnr_params_lr_free (spnr_params_t *params);
+spnr_graph_nn_free (spnr_graph_t *graph);
+
+void
+spnr_graph_lr_free (spnr_graph_t *graph);
 
 /* lattice structure methods */
 
-spnr_latt_t *
-spnr_latt_alloc (spnr_kind_t const * kind, spnr_params_t *param);
+spnr_system_t *
+spnr_system_alloc (spnr_kind_t const * kind, spnr_graph_t *graph);
 
 void
-spnr_latt_free (spnr_latt_t * const l);
+spnr_system_free (spnr_system_t * const s);
 
 float
-spnr_latt_calc_h (spnr_latt_t const * const l);
+spnr_system_calc_h (spnr_system_t const * const s);
 
 float
-spnr_latt_calc_m (spnr_latt_t const * const l);
+spnr_system_calc_m (spnr_system_t const * const s);
 
 spnr_data_t *
-spnr_latt_run (spnr_func_getter_t *getter, spnr_latt_t * l,
+spnr_latt_run (spnr_func_getter_t *getter, spnr_system_t * s,
                size_t n_steps, size_t n_probes, float temp);
 
-void spnr_latt_spins_set_up (spnr_latt_t * const l);
-void spnr_latt_spins_set_rand (spnr_latt_t * const l);
-void spnr_latt_spins_print_2d (spnr_latt_t const * const l);
-void spnr_latt_spins_print_3d (spnr_latt_t const * const l);
+void spnr_system_spins_set_up (spnr_system_t * const s);
+void spnr_system_spins_set_rand (spnr_system_t * const s);
+void spnr_system_spins_print_2d (spnr_system_t const * const s);
+void spnr_system_spins_print_3d (spnr_system_t const * const s);
 
 /*data structure methods */
 

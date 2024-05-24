@@ -31,16 +31,16 @@ typedef struct
 } ising_priv_t;
 
 static void
-spins_set_up (spnr_params_t *params, void *priv)
+spins_set_up (spnr_graph_t *graph, void *priv)
 {
   spin_t *spins = ((ising_priv_t *) priv)->spins;
-  memset (spins, +1, params->size * sizeof (spin_t));
+  memset (spins, +1, graph->size * sizeof (spin_t));
 }
 
 static void
-spins_set_rand (spnr_params_t *params, void *priv)
+spins_set_rand (spnr_graph_t *graph, void *priv)
 {
-  size_t i, size = params->size;
+  size_t i, size = graph->size;
   spin_t *spins = ((ising_priv_t *) priv)->spins;
   
   for (i = 0; i < size; ++i)
@@ -48,14 +48,14 @@ spins_set_rand (spnr_params_t *params, void *priv)
 }
 
 static void *
-priv_alloc (spnr_params_t * const params)
+priv_alloc (spnr_graph_t * const graph)
 {
   ising_priv_t *priv = malloc_err (sizeof (ising_priv_t));
-  priv->spins = malloc_err (params->size * sizeof (spin_t));
-  spins_set_up (params, priv);
+  priv->spins = malloc_err (graph->size * sizeof (spin_t));
+  spins_set_up (graph, priv);
   
-  priv->buffer = malloc_err (params->size * sizeof (size_t));
-  priv->in_cluster = malloc_err (params->size * sizeof (int));
+  priv->buffer = malloc_err (graph->size * sizeof (size_t));
+  priv->in_cluster = malloc_err (graph->size * sizeof (int));
   
   return priv;
 }
@@ -74,12 +74,12 @@ priv_free (void *priv)
 }
 
 static void
-spins_print_2d (spnr_params_t *params, void *priv)
+spins_print_2d (spnr_graph_t *graph, void *priv)
 {
   size_t i, j;
   ising_priv_t *priv_c = priv;
   spin_t *spins = priv_c->spins;
-  size_t const side = params->side;
+  size_t const side = graph->side;
   
   for (i = 0; i < side; i++)
     {
@@ -92,12 +92,12 @@ spins_print_2d (spnr_params_t *params, void *priv)
 
 
 static void
-spins_print_3d (spnr_params_t *params, void *priv)
+spins_print_3d (spnr_graph_t *graph, void *priv)
 {
   size_t i, j, k;
   ising_priv_t *priv_c = priv;
   spin_t *spins = priv_c->spins;
-  size_t const side = params->side;
+  size_t const side = graph->side;
   
   for (i = 0; i < side; i++)
     {
@@ -113,16 +113,16 @@ spins_print_3d (spnr_params_t *params, void *priv)
 
 
 static float
-cn_calc_h (spnr_params_t *params, void *priv)
+cn_calc_h (spnr_graph_t *graph, void *priv)
 {
   size_t i, j, i_inters;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = params->size;
-  size_t const n_dims = params->n_dims;
-  size_t const n_inters = params->n_inters;
-  size_t * const nbors = params->nbors, *nbors_i;
-  float * const coups = params->coups, *coups_i;
+  size_t const size = graph->size;
+  size_t const n_dims = graph->n_dims;
+  size_t const n_inters = graph->n_inters;
+  size_t * const nbors = graph->nbors, *nbors_i;
+  float * const coups = graph->coups, *coups_i;
   spin_t * const spins = priv_c->spins;
   
   float h = 0;
@@ -142,13 +142,13 @@ cn_calc_h (spnr_params_t *params, void *priv)
 
 
 static float
-lr_calc_h (spnr_params_t *params, void *priv)
+lr_calc_h (spnr_graph_t *graph, void *priv)
 {
   size_t i, j;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = params->size;
-  float * const coups = params->coups, *coups_i;
+  size_t const size = graph->size;
+  float * const coups = graph->coups, *coups_i;
   spin_t * const spins = priv_c->spins;
   
   float h = 0;
@@ -170,12 +170,12 @@ lr_calc_h (spnr_params_t *params, void *priv)
 
 
 static float
-calc_m (spnr_params_t *params, void *priv)
+calc_m (spnr_graph_t *graph, void *priv)
 {
   size_t i;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = params->size;
+  size_t const size = graph->size;
   spin_t * const spins = priv_c->spins;
   
   float m = 0;
@@ -188,15 +188,15 @@ calc_m (spnr_params_t *params, void *priv)
 }
 
 static void
-cn_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
+cn_mcstep_metr (spnr_graph_t *graph, void *priv, float const beta)
 {
   size_t i, j, k, k_inters;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = params->size;
-  size_t const n_inters = params->n_inters;
-  size_t * const nbors = params->nbors, *nbors_k;
-  float * const coups = params->coups, *coups_k;
+  size_t const size = graph->size;
+  size_t const n_inters = graph->n_inters;
+  size_t * const nbors = graph->nbors, *nbors_k;
+  float * const coups = graph->coups, *coups_k;
   spin_t * const spins = priv_c->spins, *spins_k;
   
   float h_delta;
@@ -220,14 +220,14 @@ cn_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
 }
 
 static void
-lr_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
+lr_mcstep_metr (spnr_graph_t *graph, void *priv, float const beta)
 {
   size_t i, j, k;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = params->size;
+  size_t const size = graph->size;
   float const one_over_sqsize = 1.0 / sqrt(size);
-  float * const coups = params->coups, *coups_k;
+  float * const coups = graph->coups, *coups_k;
   spin_t * const spins = priv_c->spins, *spins_k;
   
   float h_delta;
@@ -251,15 +251,15 @@ lr_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
 }
 
 void
-cn_mcstep_wolff (spnr_params_t *params, void *priv, float const beta)
+cn_mcstep_wolff (spnr_graph_t *graph, void *priv, float const beta)
 {
   size_t i, k, head, index_cur, index_nbor;
   ising_priv_t *priv_c = (ising_priv_t *) priv;
   
-  size_t const size = params->size;
-  size_t const n_inters = params->n_inters;
-  size_t * const nbors = params->nbors, *nbors_cur;
-  float * const coups = params->coups, *coups_cur;
+  size_t const size = graph->size;
+  size_t const n_inters = graph->n_inters;
+  size_t * const nbors = graph->nbors, *nbors_cur;
+  float * const coups = graph->coups, *coups_cur;
   
   spin_t * const spins = priv_c->spins, spin_cur;
   size_t * const buffer = priv_c->buffer;

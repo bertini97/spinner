@@ -21,65 +21,65 @@
 #include "utils.h"
 #include "error.h"
 
-spnr_latt_t *
-spnr_latt_alloc (spnr_kind_t const * kind,
-                 spnr_params_t * params)
+spnr_system_t *
+spnr_system_alloc (spnr_kind_t const * kind,
+                   spnr_graph_t * graph)
 {
-  spnr_latt_t * l = malloc_err (sizeof (spnr_latt_t));
+  spnr_system_t * s = malloc_err (sizeof (spnr_system_t));
   
-  if (!kind || !params)
+  if (!kind || !graph)
     spnr_err (SPNR_ERROR_ARG_NULL, "requested argument is NULL");
-  l->kind = kind;
-  l->params = params;
-  l->priv = kind->priv_alloc (params);
+  s->kind = kind;
+  s->graph = graph;
+  s->priv = kind->priv_alloc (graph);
   
-  return l;
+  return s;
 }
 
 void
-spnr_latt_free (spnr_latt_t * const l)
+spnr_system_free (spnr_system_t * const s)
 {
-  l->kind->priv_free (l->priv);
-  free (l);
+  s->kind->priv_free (s->priv);
+  free (s);
 }
 
 void
-spnr_latt_spins_set_up (spnr_latt_t * const l)
+spnr_system_spins_set_up (spnr_system_t * const s)
 {
-  l->kind->spins_set_up (l->params, l->priv);
+  s->kind->spins_set_up (s->graph, s->priv);
 }
 
 void
-spnr_latt_spins_set_rand (spnr_latt_t * const l)
+spnr_system_spins_set_rand (spnr_system_t * const s)
 {
-  l->kind->spins_set_rand (l->params, l->priv);
+  s->kind->spins_set_rand (s->graph, s->priv);
 }
 
 void
-spnr_latt_spins_print_2d (spnr_latt_t const * const l)
+spnr_system_spins_print_2d (spnr_system_t const * const s)
 {
-  l->kind->spins_print_2d (l->params, l->priv);
+  s->kind->spins_print_2d (s->graph, s->priv);
 }
 
 void
-spnr_latt_spins_print_3d (spnr_latt_t const * const l)
+spnr_system_spins_print_3d (spnr_system_t const * const s)
 {
-  l->kind->spins_print_3d (l->params, l->priv);
+  s->kind->spins_print_3d (s->graph, s->priv);
 }
 
 float
-spnr_latt_calc_h (spnr_latt_t const * const l)
+spnr_system_calc_h (spnr_system_t const * const s)
 {
   float h;
-  h = l->kind->calc_h (l->params, l->priv);
+  h = s->kind->calc_h (s->graph, s->priv);
   return h; 
 }
 
 float
-spnr_latt_calc_m (spnr_latt_t const * const l)
+spnr_system_calc_m (spnr_system_t const * const s)
 {
   float h;
-  h = l->kind->calc_m (l->params, l->priv);
+  h = s->kind->calc_m (s->graph, s->priv);
   return h; 
 }
 
@@ -102,32 +102,32 @@ spnr_wolff (spnr_kind_t const * kind)
 }
 
 spnr_data_t *
-spnr_latt_run (spnr_func_getter_t *getter, spnr_latt_t * l,
+spnr_system_run (spnr_func_getter_t *getter, spnr_system_t * s,
                size_t n_steps, size_t n_probes, float temp)
 {
   size_t i, j;
   size_t const n_steps_bef_probe = n_steps / n_probes;
   float const beta = 1.0 / temp;
   
-  spnr_params_t *params = l->params;
-  void * priv = l->priv;
-  float (*calc_h) (spnr_params_t *params, void *priv) = l->kind->calc_h;
-  float (*calc_m) (spnr_params_t *params, void *priv) = l->kind->calc_m;
-  void (*func) (spnr_params_t *params, void *priv, float beta) = getter(l->kind);
+  spnr_graph_t *graph = s->graph;
+  void * priv = s->priv;
+  float (*calc_h) (spnr_graph_t *graph, void *priv) = s->kind->calc_h;
+  float (*calc_m) (spnr_graph_t *graph, void *priv) = s->kind->calc_m;
+  void (*func) (spnr_graph_t *graph, void *priv, float beta) = getter(s->kind);
   
   spnr_data_t * const data = spnr_data_alloc (n_probes + 1);
   
   srand (time (0));
   
-  data->h[0] = calc_h (params, priv);
-  data->m[0] = calc_m (params, priv);
+  data->h[0] = calc_h (graph, priv);
+  data->m[0] = calc_m (graph, priv);
   
   for (i = 1; i <= n_probes; ++i)
     {
       for (j = 0; j < n_steps_bef_probe; ++j)
-          func (l->params, priv, beta);
-      data->h[i] = calc_h (params, priv);
-      data->m[i] = calc_m (params, priv);
+          func (s->graph, priv, beta);
+      data->h[i] = calc_h (graph, priv);
+      data->m[i] = calc_m (graph, priv);
     }
   
   return data;

@@ -118,9 +118,9 @@ spin_print (spin_t * const u, size_t const n_comps)
 }
 
 static void
-spins_set_up (spnr_params_t *params, void *priv)
+spins_set_up (spnr_graph_t *graph, void *priv)
 {
-  size_t i, j, size = params->size, n_comps = params->param;
+  size_t i, j, size = graph->size, n_comps = graph->param;
   spin_t *spins = ((nvector_priv_t *) priv)->spins;
   
   for (i = 0; i < size; ++i)
@@ -132,9 +132,9 @@ spins_set_up (spnr_params_t *params, void *priv)
 }
 
 static void
-spins_set_rand (spnr_params_t *params, void *priv)
+spins_set_rand (spnr_graph_t *graph, void *priv)
 {
-  size_t i, j, size = params->size, n_comps = params->param;
+  size_t i, j, size = graph->size, n_comps = graph->param;
   spin_t *spins = ((nvector_priv_t *) priv)->spins;
   
   for (i = 0; i < size; ++i)
@@ -142,16 +142,16 @@ spins_set_rand (spnr_params_t *params, void *priv)
 }
 
 static void *
-priv_alloc (spnr_params_t *params)
+priv_alloc (spnr_graph_t *graph)
 {
   nvector_priv_t *priv = malloc_err (sizeof (nvector_priv_t));
   
-  if (!params->param)
+  if (!graph->param)
     spnr_err (SPNR_ERROR_PARAM_OOB, "param cannot be zero for nvector");
-  priv->n_comps = params->param;
-  priv->spins = malloc_err (params->size * priv->n_comps * sizeof (spin_t));
+  priv->n_comps = graph->param;
+  priv->spins = malloc_err (graph->size * priv->n_comps * sizeof (spin_t));
   
-  spins_set_up (params, priv);
+  spins_set_up (graph, priv);
   
   return priv;
 }
@@ -166,12 +166,12 @@ priv_free (void *priv)
 }
 
 static void
-spins_print_2d (spnr_params_t *params, void *priv)
+spins_print_2d (spnr_graph_t *graph, void *priv)
 {
   size_t i, j, index;
   nvector_priv_t *priv_c = priv;
   
-  size_t const side = params->side;
+  size_t const side = graph->side;
   spin_t *spins = priv_c->spins;
   size_t const n_comps = priv_c->n_comps;
   
@@ -188,11 +188,11 @@ spins_print_2d (spnr_params_t *params, void *priv)
 }
 
 static void
-spins_print_3d (spnr_params_t *params, void *priv)
+spins_print_3d (spnr_graph_t *graph, void *priv)
 {
   size_t i, j, k, index;
   nvector_priv_t *priv_c = priv;
-  size_t const side = params->side;
+  size_t const side = graph->side;
   size_t const n_comps = priv_c->n_comps;
   spin_t *spins = priv_c->spins;
   
@@ -212,16 +212,16 @@ spins_print_3d (spnr_params_t *params, void *priv)
 }
 
 static float
-cn_calc_h (spnr_params_t *params, void *priv)
+cn_calc_h (spnr_graph_t *graph, void *priv)
 {
   size_t i, j, index;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
-  size_t const size = params->size;
-  size_t const n_dims = params->n_dims;
-  size_t const n_inters = params->n_inters;
-  size_t * const nbors = params->nbors, *nbors_i;
-  float * const coups = params->coups, *coups_i;
+  size_t const size = graph->size;
+  size_t const n_dims = graph->n_dims;
+  size_t const n_inters = graph->n_inters;
+  size_t * const nbors = graph->nbors, *nbors_i;
+  float * const coups = graph->coups, *coups_i;
   
   size_t const n_comps = priv_c->n_comps;
   spin_t * const spins = priv_c->spins, *spins_i;
@@ -245,12 +245,12 @@ cn_calc_h (spnr_params_t *params, void *priv)
 }
 
 static float
-calc_m (spnr_params_t *params, void *priv)
+calc_m (spnr_graph_t *graph, void *priv)
 {
   size_t i, j;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
-  size_t const size = params->size;
+  size_t const size = graph->size;
   size_t const n_comps = priv_c->n_comps;
   spin_t * const spins = priv_c->spins, *spins_i;
   
@@ -283,15 +283,15 @@ h_delta_calc (size_t * const nbors_k, float * const coups_k,
 }
 
 static void
-cn_mcstep_metr (spnr_params_t *params, void *priv, float const beta)
+cn_mcstep_metr (spnr_graph_t *graph, void *priv, float const beta)
 {
   size_t i, k, index;
   nvector_priv_t *priv_c = (nvector_priv_t *) priv;
   
-  size_t const size = params->size;
-  size_t const n_inters = params->n_inters;
-  size_t * const nbors = params->nbors;
-  float * const coups = params->coups;
+  size_t const size = graph->size;
+  size_t const n_inters = graph->n_inters;
+  size_t * const nbors = graph->nbors;
+  float * const coups = graph->coups;
   
   size_t const n_comps = priv_c->n_comps;
   spin_t * const spins = priv_c->spins, *spins_k;
