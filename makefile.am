@@ -1,3 +1,4 @@
+ACLOCAL_AMFLAGS = -I m4
 lib_LTLIBRARIES = libspinner.la
 pkginclude_HEADERS = spinner.h
 libspinner_la_SOURCES = system.c data.c graph.c utils.c ising.c nvector.c error.c

@@ -1,6 +1,6 @@
 /* error.h
  * 
- * Copyright (C) 2023 L. Bertini
+ * Copyright (C) 2024 L. Bertini
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,15 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-#include "spinner.h"
+#undef BEGIN_C_DECLS
+#undef END_C_DECLS
+#ifdef __cplusplus
+# define BEGIN_C_DECLS extern "C" {
+# define END_C_DECLS }
+#else
+# define BEGIN_C_DECLS /* empty */
+# define END_C_DECLS /* empty */
+#endif
 
 BEGIN_C_DECLS
 
@@ -36,6 +44,8 @@ enum
 
 extern void spnr_warn (int warn, char const *mess);
 extern void spnr_err (int err, char const *mess);
+
+extern void * malloc_err (size_t size);
 
 END_C_DECLS
 

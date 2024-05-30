@@ -1,6 +1,6 @@
 /* error.c
  * 
- * Copyright (C) 2023 L. Bertini
+ * Copyright (C) 2024 L. Bertini
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "error.h"
 
 void
@@ -30,4 +33,13 @@ void
 spnr_warn (int warn, char const *mess)
 {
   fprintf (stderr, "WARNING: %s\n", mess);
+}
+
+void *
+malloc_err (size_t const size)
+{
+  void * const p = malloc (size);
+  if (!p)
+    spnr_err (SPNR_ERROR_ALLOC, "malloc returned NULL");
+  return p;
 }

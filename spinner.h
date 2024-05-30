@@ -1,6 +1,6 @@
 /* spinner.h
  * 
- * Copyright (C) 2023 L. Bertini
+ * Copyright (C) 2024 L. Bertini
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,8 @@
 #ifndef SPNR_H
 #define SPNR_H
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include <stdint.h>
-#include <time.h>
+#include <stdio.h>
 
 #undef BEGIN_C_DECLS
 #undef END_C_DECLS
@@ -37,151 +33,160 @@
 # define END_C_DECLS /* empty */
 #endif
 
-#define SPNR_FALSE          0
-#define SPNR_TRUE           1
-
-#define SPNR_PI             3.1415926536
-#define SPNR_J              1
-#define SPNR_BUFFER_SIZE    100
-#define SPNR_SIDE_MAX       512
-#define SPNR_DIMS_MAX       8
-#define SPNR_COMPS_MAX      8
+#define SPNR_FALSE 0
+#define SPNR_TRUE 1
 
 BEGIN_C_DECLS
 
-/* structure holding a coupling matrix */
-typedef struct
-{
-  size_t side;
-  size_t n_dims;
-  size_t param;
-  size_t size;
-  size_t n_inters;
-  
-  float * coups;
-  size_t * nbors;
-} spnr_graph_t;
+/* struct forward declaration */
 
-/* Opaque structure representing a lattice kind, containing the functions
- * necessary to create it, simulate it with MCMC methods and
- * measure the relevant quantities
+typedef struct spnr_graph_struct spnr_graph_t;
+typedef struct spnr_sys_struct spnr_sys_t;
+typedef struct spnr_step_struct spnr_step_t;
+
+/* System object
+ *
+ * Opaque object representing a spin system
+ * TODO: comment architecture
  */
+
 typedef struct
 {
   char const * name;
-  void * (*priv_alloc) (spnr_graph_t * graph);
+  void * (*priv_alloc) (size_t N, size_t param);
   void (*priv_free) (void *priv);
-  void (*spins_set_up) (spnr_graph_t *graph, void *priv);
-  void (*spins_set_rand) (spnr_graph_t *graph, void *priv);
-  void (*spins_print_2d) (spnr_graph_t *graph, void *priv);
-  void (*spins_print_3d) (spnr_graph_t *graph, void *priv);
-  float (*calc_h) (spnr_graph_t *graph, void *priv);
-  float (*calc_m) (spnr_graph_t *graph, void *priv);
-  void  (*mcstep_metr) (spnr_graph_t *graph, void *priv, float beta);
-  void  (*mcstep_wolff) (spnr_graph_t *graph, void *priv, float beta);
-} spnr_kind_t;
+  size_t (*spin_size) (void *priv);
+  void (*set_up) (void *priv, size_t N);
+  void (*set_rand) (void *priv, size_t N);
+  
+  void (*fill_prop) (void const *priv, void *prop, size_t k);
+  void (*accept_prop) (void *priv, void const *prop, size_t k);
+  
+  float (*calc_delta_h_binary) (void const *priv, size_t n_sites,
+                                float const *J, size_t const *sites,
+                                void const *prop, size_t k);
+  float (*calc_part_h_binary) (void const* priv, size_t n_sites,
+                               float const *J, size_t const *sites,
+                               size_t k);
+  
+  float (*calc_phi) (void const *priv, size_t N);
+} spnr_sys_kind_t;
 
-/* Structure representing a lattice containing a lattice type structure
- * and a pointer to the private data, that has a different structure
- * for every lattice kind
+struct spnr_sys_struct
+{
+  spnr_sys_kind_t const * kind;
+  void *priv;
+  size_t N;
+  spnr_graph_t *graph;
+};
+
+/* Available system kinds */
+
+extern spnr_sys_kind_t const *spnr_ising;
+extern spnr_sys_kind_t const *spnr_nvector;
+
+/* System object methods */
+
+spnr_sys_t * spnr_sys_alloc (spnr_graph_t *graph, spnr_sys_kind_t const * kind, size_t param);
+void spnr_sys_free (spnr_sys_t * sys);
+float spnr_sys_spin_size (spnr_sys_t * sys);
+float spnr_sys_calc_h (spnr_sys_t * sys);
+float spnr_sys_calc_phi (spnr_sys_t * sys);
+
+/* Graph object
+ *
+ * Opaque object representing a graph
+ * TODO: comment architecture
  */
+
 typedef struct
 {
-  spnr_kind_t const * kind;
-  spnr_graph_t * graph;
+  char const * name;
+  void * (*priv_alloc) (float (*getter)(), size_t N, size_t param);
+  void (*priv_free) (void *priv);
+  float (*calc_delta_h) (void const *priv, spnr_sys_t const *sys, void const *prop, size_t k);
+  float (*calc_h) (void const *priv, size_t N, spnr_sys_t const *sys);
+} spnr_graph_kind_t;
+
+struct spnr_graph_struct
+{
+  spnr_graph_kind_t const * kind;
   void * priv;
-} spnr_system_t;
+  size_t N;
+};
 
+/* Available graph kinds */
 
-/* Structure for a double vector of data, holding the energy and
- * magnetization for every time step
+extern spnr_graph_kind_t const *spnr_cubic;
+
+/* System object methods */
+
+spnr_graph_t * spnr_graph_alloc (spnr_graph_kind_t const *kind,
+                                 float (*getter)(),
+                                 size_t N, size_t param);
+void spnr_graph_free (spnr_graph_t *graph);
+
+/* Stepper object
+ *
+ * Opaque object representing a stepper
+ * TODO: comment architecture
  */
+
+typedef struct {
+  char const * name;
+  void * (*priv_alloc) (size_t param);
+  void (*priv_free) (void *priv);
+  void (*apply) (void *priv, spnr_sys_t const *sys, float beta);
+} spnr_step_kind_t;
+
+struct spnr_step_struct {
+  spnr_step_kind_t const * kind;
+  void *priv;
+};
+
+/* Available stepper kinds */
+
+extern spnr_step_kind_t const *spnr_metropolis;
+
+/* System object methods */
+
+spnr_step_t * spnr_step_alloc (spnr_step_kind_t const *kind, size_t param);
+void spnr_step_free (spnr_step_t *step);
+void spnr_step_apply (spnr_step_t const *step, spnr_sys_t const *sys,
+                      float beta);
+
+/* Graph couplings getter functions */
+
+float spnr_ferr ();
+
+
+/* Data struct
+ *
+ * Convenience struct to hold simulation data
+ * TODO: comment architecture
+ */
+
 typedef struct
 {
   size_t size;
-  float *h;
-  float *m;
+  float * h;
+  float * phi;
 } spnr_data_t;
 
-/* lord forgive me */
+/* Data object methods */
 
-typedef void spnr_func_t (spnr_graph_t *graph, void *priv, float beta);
-typedef spnr_func_t * spnr_func_getter_t (spnr_kind_t const *kind);
-
-/* available lattice kinds */
-
-extern spnr_kind_t const *spnr_ising_cubicnn;
-extern spnr_kind_t const *spnr_ising_longrange;
-
-extern spnr_kind_t const *spnr_nvector_cubicnn;
-
-/* available interactions */
-
-extern float spnr_ferr ();
-extern float spnr_antiferr ();
-extern float spnr_bim ();
-
-/* available func methods */
-
-extern spnr_func_t *spnr_metr (spnr_kind_t const * kind);
-extern spnr_func_t *spnr_wolff (spnr_kind_t const * kind);
-
-/* coupling matrix methods */
-
-spnr_graph_t *
-spnr_graph_cubicnn_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
-
-spnr_graph_t *
-spnr_graph_longrange_alloc (float (*getter)(), size_t side, size_t n_dims, size_t param);
-
-void
-spnr_graph_nn_free (spnr_graph_t *graph);
-
-void
-spnr_graph_lr_free (spnr_graph_t *graph);
-
-/* lattice structure methods */
-
-spnr_system_t *
-spnr_system_alloc (spnr_kind_t const * kind, spnr_graph_t *graph);
-
-void
-spnr_system_free (spnr_system_t * const s);
-
-float
-spnr_system_calc_h (spnr_system_t const * const s);
-
-float
-spnr_system_calc_m (spnr_system_t const * const s);
-
-spnr_data_t *
-spnr_latt_run (spnr_func_getter_t *getter, spnr_system_t * s,
-               size_t n_steps, size_t n_probes, float temp);
-
-void spnr_system_spins_set_up (spnr_system_t * const s);
-void spnr_system_spins_set_rand (spnr_system_t * const s);
-void spnr_system_spins_print_2d (spnr_system_t const * const s);
-void spnr_system_spins_print_3d (spnr_system_t const * const s);
-
-/*data structure methods */
-
-spnr_data_t *
-spnr_data_alloc (size_t const size);
-
-void
-spnr_data_free (spnr_data_t *d);
-
-void
-spnr_data_write (spnr_data_t const * const d,
-                 char * const fname);
-
-spnr_data_t *
-spnr_data_corr_calc (spnr_data_t const * const data);
-
-void
-spnr_data_mean_calc (spnr_data_t const * const d,
-                     float *h,
-                     float *m);
+spnr_data_t * spnr_data_alloc (size_t const size);
+void spnr_data_free (spnr_data_t *data);
+void spnr_data_write (spnr_data_t const *data, char const *fname);
+void spnr_data_mean_calc (spnr_data_t const *data,
+                          float *h_mean, float * const phi_mean);
+void spnr_data_var_calc (spnr_data_t const * const data,
+                         float * const h_var, float * const phi_var);
+void spnr_data_corr_calc (spnr_data_t *corr, spnr_data_t const *data);
+void spnr_data_run_and_probe (spnr_data_t *data, spnr_sys_t *sys,
+                              spnr_step_t const *step,
+                              float temp, size_t n_steps_before_probe);
 
 END_C_DECLS
+
 #endif

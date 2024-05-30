@@ -1,4 +1,4 @@
-/* nvector.c
+/* step.c
  * 
  * Copyright (C) 2024 L. Bertini
  * 
@@ -17,25 +17,33 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <time.h>
+
 #include "spinner.h"
 #include "error.h"
 
-spnr_graph_t *
-spnr_graph_alloc (spnr_graph_kind_t const * const kind,
-                  float const (*getter)(),
-                  size_t const N,
-                  size_t const param)
+spnr_step_t *
+spnr_step_alloc (spnr_step_kind_t const * const kind, size_t const param)
 {
-  spnr_graph_t *graph = malloc_err (sizeof(spnr_graph_t));
-  graph->N = N;
-  graph->kind = kind;
-  graph->priv = kind->priv_alloc(getter, N, param);
-  return graph;
+  srand (time(0));
+  spnr_step_t * step = malloc_err (sizeof (spnr_step_t));
+  step->kind = kind;
+  step->priv = kind->priv_alloc (param);
+  
+  return step;
 }
 
 void
-spnr_graph_free (spnr_graph_t * const graph)
+spnr_step_free (spnr_step_t * const step)
 {
-  graph->kind->priv_free (graph->priv);
-  free (graph);
+  step->kind->priv_free (step->priv);
+  free (step);
+}
+
+void
+spnr_step_apply (spnr_step_t const * const step,
+                 spnr_sys_t const * const sys,
+                 float const beta)
+{
+  step->kind->apply(step->priv, sys, beta);
 }
