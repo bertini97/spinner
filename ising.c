@@ -23,7 +23,7 @@
 #include "spinner.h"
 #include "error.h"
 
-typedef int spin_t;
+typedef char spin_t;
 
 static void
 set_up (void *priv, size_t N)

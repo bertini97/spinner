@@ -9,6 +9,12 @@ AC_CONFIG_FILES([makefile])
 AC_CHECK_HEADERS([stdint.h])
 AC_CONFIG_MACRO_DIRS([m4])
 
+AC_ARG_ENABLE([release],
+    [AS_HELP_STRING([--enable-release], [build with optimization flags])],
+    [enable_release=$enableval], [enable_release=no])
+
+AM_CONDITIONAL([RELEASE_BUILD], [test "x$enable_release" = "xyes"])
+
 AC_TYPE_SIZE_T
 AC_FUNC_MALLOC
 

@@ -44,8 +44,8 @@ Here is an example code that, at different temperatures, samples:
 
 int main()
 {
-  size_t N = 10000, n_temps = 30, n_probes = 1000+1, i;
-  float temp, temp_start = 0.1, temp_finish=3.0, temp_step, beta;
+  size_t N = 2500, n_temps = 50, n_probes = 1000+1, i;
+  float temp, temp_start = 0.1, temp_finish=5.0, temp_step, beta;
   float h_mean, m_mean, h_var, m_var;
   FILE * f;
   
@@ -62,7 +62,6 @@ int main()
       temp = temp_start + i * temp_step;
       beta = 1.0 / temp;
       
-      printf ("temp=%f\n", temp);
       spnr_data_run_and_probe (data, sys, step, temp, 10);
       spnr_data_mean_calc (data, &h_mean, &m_mean);
       spnr_data_var_calc (data, &h_var, &m_var);
@@ -81,6 +80,13 @@ To compile:
 ```bash
 gcc -I /usr/local/include/ program.c -o program -L /usr/local/lib -lspinner -lm
 ```
+
+Upon execution, it will produce a file. Using `gnuplot` with the following command
+```gnuplot
+plot "results.txt" using 1:4 with lines
+```
+yelds
+![results](results.svg)
 
 ## Planned features:
 Here are the planned features for this library. For now, only some of them are in place.
@@ -105,4 +111,3 @@ Here are the planned features for this library. For now, only some of them are i
 	 - [x] Simulation data object
 	 - [ ] Parallelization
 	 - [ ] Parallel tempering
-
