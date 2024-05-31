@@ -36,8 +36,9 @@ The default installation prefix is `/usr/local/lib`.
 
 Here is an example code that, at different temperatures, samples:
 * an Ising system
-* on a cubic lattice
+* on a cubic lattice in 2D with side 50 (`N=2500` sites)
 * with ferromagnetic interactions
+* every `10*N` steps using the Metropolis algorithm
 ```c
 #include <stdio.h>
 #include <spinner/spinner.h>
@@ -86,6 +87,7 @@ Upon execution, it will produce a file. Using `gnuplot` with the following comma
 plot "results.txt" using 1:4 with lines
 ```
 yelds
+
 ![results](results.svg)
 
 ## Planned features:
