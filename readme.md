@@ -14,7 +14,7 @@ Spin systems, such as the **Ising** or the **Heisenberg** model, are defined on 
 
 The system object can hold spin variables of different kinds, such as Ising variables ($s_i=\pm1$), or n-vector variables ($\mathbf{s}_i\in\mathbb{R}^n:|s_i|=1$). The graph kind holds the coupling constants $J_{ij}$ that make up the graph. Graph structures can be of the following kinds:
 
-![graph_kinds](graph_kinds.png)
+![graph_kinds](graph_kinds.svg)
 
 Read the [documentation](https://bertini97.gitlab.io/spinner/) for a detailed explanation.
 
@@ -67,7 +67,7 @@ int main()
       spnr_data_mean_calc (data, &h_mean, &m_mean);
       spnr_data_var_calc (data, &h_var, &m_var);
       fprintf (f, "%f %+f %+f %+f %+f\n", temp, h_mean, m_mean,
-						  beta * beta * N * h_var, beta * N * m_var);
+               beta * beta * N * h_var, beta * N * m_var);
     }
   fclose (f);
   
